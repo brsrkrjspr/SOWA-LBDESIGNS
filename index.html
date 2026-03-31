@@ -1,0 +1,1360 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Statement of Account</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#e11d48" />
+    <style>
+      :root{
+        --ink:#111;
+        --muted:#666;
+        --line:#1a1a1a;
+        --paper:#f2f2f2;
+        --bg:#e9e9ee;
+        --accent:#1f5eff;
+        --header-gray:#d2d2d2;
+        --a4w:210mm;
+        --a4h:297mm;
+        --page-pad-x:18mm;
+        --page-pad-y:16mm;
+        --items-body-mm:82mm; /* keeps the big 2-row box height consistent */
+      }
+      *{box-sizing:border-box}
+      body{
+        margin:0;
+        font-family: "Times New Roman", Times, Georgia, serif;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      .app{
+        max-width: 1100px;
+        margin: 18px auto;
+        padding: 0 16px 40px;
+      }
+      .topbar{
+        position: sticky;
+        top: 10px;
+        z-index: 20;
+        display:flex;
+        gap:12px;
+        align-items:center;
+        justify-content:space-between;
+        padding: 10px 12px;
+        margin: 0 auto 12px;
+        border: 1px solid rgba(0,0,0,.10);
+        background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,244,249,.94));
+        border-radius: 14px;
+        backdrop-filter: blur(8px);
+      }
+      .topbar .left{
+        display:flex;
+        flex-direction:column;
+        gap:4px;
+      }
+      .topbar h1{
+        margin:0;
+        font-size: 18px;
+        letter-spacing:.02em;
+      }
+      .topbar .hint{
+        margin:0;
+        color:var(--muted);
+        font-size: 12px;
+      }
+      .actions{
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        justify-content:flex-end;
+      }
+      button{
+        appearance:none;
+        border:1px solid rgba(0,0,0,.20);
+        background:#fff;
+        color:var(--ink);
+        padding:9px 12px;
+        border-radius:10px;
+        cursor:pointer;
+        font-weight:700;
+        font-size:13px;
+      }
+      button.primary{
+        border-color: rgba(31,94,255,.25);
+        background: rgba(31,94,255,.08);
+        color:#1137b9;
+      }
+      /* Feminine UI polish (dialogs + toolbar). No-print keeps it off PDFs. */
+      .no-print{
+        --ui-rose:#e11d48;
+        --ui-rose-2:#fb7185;
+        --ui-ink:#7a1230;
+      }
+      .topbar.no-print button{
+        border-color: rgba(225,29,72,.25);
+      }
+      .topbar.no-print button.primary{
+        border-color: rgba(225,29,72,.35);
+        background: rgba(225,29,72,.08);
+        color: var(--ui-ink);
+      }
+      .topbar.no-print button:hover{
+        border-color: rgba(225,29,72,.55);
+        box-shadow: 0 10px 30px rgba(225,29,72,.10);
+        transform: translateY(-1px);
+      }
+      .manage-dialog.no-print{
+        position: relative;
+        background: linear-gradient(180deg, rgba(255,255,255,.97), rgba(255,243,248,.97));
+        border: 1px solid rgba(225,29,72,.28);
+        box-shadow: 0 18px 60px rgba(225,29,72,.10);
+      }
+      .manage-dialog.no-print::before{
+        content:'';
+        position:absolute;
+        inset:-2px;
+        border-radius: inherit;
+        background:
+          radial-gradient(circle at 18% 22%, rgba(225,29,72,.18) 0 18%, transparent 19%),
+          radial-gradient(circle at 82% 18%, rgba(251,113,133,.16) 0 14%, transparent 15%),
+          radial-gradient(circle at 60% 80%, rgba(225,29,72,.10) 0 16%, transparent 17%),
+          linear-gradient(135deg, rgba(251,113,133,.12), rgba(225,29,72,.04));
+        pointer-events:none;
+      }
+      .manage-dialog.no-print > *{
+        position: relative;
+        z-index: 1;
+      }
+      .manage-dialog.no-print .dlg-title{
+        border-bottom: 1px solid rgba(225,29,72,.18);
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+      }
+      .manage-dialog.no-print .dlg-title h2{
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+        color: var(--ui-ink);
+        letter-spacing: .01em;
+      }
+      .manage-dialog.no-print .col-row input[type="text"]{
+        border-color: rgba(225,29,72,.25);
+      }
+      .manage-dialog.no-print .icon-btn{
+        border-color: rgba(225,29,72,.28);
+        background: rgba(255,255,255,.95);
+      }
+      .manage-dialog.no-print .icon-btn:hover{
+        border-color: rgba(225,29,72,.55);
+        transform: translateY(-1px);
+      }
+      button:disabled{
+        opacity:.55;
+        cursor:not-allowed;
+      }
+      .paper-wrap{
+        background: var(--paper);
+        border:1px solid rgba(0,0,0,.25);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 18px 60px rgba(0,0,0,.10);
+        width: var(--a4w);
+        min-height: var(--a4h);
+        margin: 0 auto;
+      }
+      .paper{
+        padding: var(--page-pad-y) var(--page-pad-x);
+        width: var(--a4w);
+        min-height: var(--a4h);
+        /* lock to one A4 page but leave a tiny safety margin to avoid page splitting */
+        min-height: calc(var(--a4h) - 2mm);
+        height: calc(var(--a4h) - 2mm);
+        overflow: hidden; /* prevents accidental 2nd page */
+        position: relative;
+        /* Match the feminine topbar gradient for on-screen editing. */
+        background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,244,249,.94));
+      }
+      .paper::before{
+        content:'';
+        position:absolute;
+        inset:0;
+        z-index:0;
+        pointer-events:none;
+        /* Decorative icons + soft watermark. Kept behind content. */
+        background:
+          /* corner stars */
+          url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%20viewBox%3D%270%200%2044%2044%27%3E%3Cpath%20d%3D%27M22%203%2029%2019%2039%2019%2024%2029%2028%2040%2022%2032%2016%2040%2019%2029%204%2019%2014%2019z%27%20fill%3D%27%23e11d48%27%20opacity%3D%270.22%27/%3E%3C/svg%3E") 16mm 18mm / 26px 26px no-repeat,
+          url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%20viewBox%3D%270%200%2044%2044%27%3E%3Cpath%20d%3D%27M22%203%2029%2019%2039%2019%2024%2029%2028%2040%2022%2032%2016%2040%2019%2029%204%2019%2014%2019z%27%20fill%3D%27%23fb7185%27%20opacity%3D%270.18%27/%3E%3C/svg%3E") calc(100% - 16mm) 18mm / 26px 26px no-repeat,
+          url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%20viewBox%3D%270%200%2044%2044%27%3E%3Cpath%20d%3D%27M22%203%2029%2019%2039%2019%2024%2029%2028%2040%2022%2032%2016%2040%2019%2029%204%2019%2014%2019z%27%20fill%3D%27%23e11d48%27%20opacity%3D%270.14%27/%3E%3C/svg%3E") 16mm calc(100% - 18mm) / 26px 26px no-repeat,
+          url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%20viewBox%3D%270%200%2044%2044%27%3E%3Cpath%20d%3D%27M22%203%2029%2019%2039%2019%2024%2029%2028%2040%2022%2032%2016%2040%2019%2029%204%2019%2014%2019z%27%20fill%3D%27%23fb7185%27%20opacity%3D%270.12%27/%3E%3C/svg%3E") calc(100% - 16mm) calc(100% - 18mm) / 26px 26px no-repeat,
+          /* dots */
+          radial-gradient(circle at 18% 22%, rgba(225,29,72,.12) 0 1px, transparent 2px),
+          radial-gradient(circle at 82% 18%, rgba(251,113,133,.10) 0 1px, transparent 2px),
+          radial-gradient(circle at 50% 48%, rgba(225,29,72,.08) 0 1px, transparent 2px),
+          linear-gradient(180deg, rgba(255,244,249,.55), rgba(255,255,255,1));
+        opacity:.55;
+      }
+      .paper::after{
+        /* Decorative ribbon removed for cleaner paper; keep pseudo-element empty. */
+        content:'';
+        position:absolute;
+        left:0;
+        right:0;
+        top:0;
+        height:0;
+        pointer-events:none;
+        opacity:0;
+      }
+      /* Override: remove extra icon layers (keep only dots + clean ribbon). */
+      .paper::before{
+        background:
+          radial-gradient(circle at 18% 22%, rgba(225,29,72,.12) 0 1px, transparent 2px),
+          radial-gradient(circle at 82% 18%, rgba(251,113,133,.10) 0 1px, transparent 2px),
+          radial-gradient(circle at 50% 48%, rgba(225,29,72,.08) 0 1px, transparent 2px),
+          linear-gradient(180deg, rgba(255,244,249,.55), rgba(255,255,255,1));
+        opacity:.55;
+      }
+      .paper > *{
+        position: relative;
+        z-index:1;
+      }
+      .brand{
+        text-align:center;
+        margin-top: 4mm;
+      }
+      .brand .logo{
+        width: 40mm;
+        height: auto;
+        margin: 0 auto 1mm;
+        display:block;
+      }
+      .brand .name{
+        font-weight: 700;
+        font-size: 18pt;
+        letter-spacing: .02em;
+        margin: 0;
+      }
+      .brand .tag{
+        font-size: 8pt;
+        letter-spacing: .08em;
+        margin: 0;
+        margin-top: 1mm;
+        text-transform: uppercase;
+      }
+      .doc-title{
+        text-align:center;
+        font-weight: 700;
+        font-size: 16pt;
+        margin: 14mm 0 8mm;
+        letter-spacing: .03em;
+      }
+      .line-fields{
+        display:flex;
+        justify-content:space-between;
+        gap: 18mm;
+        margin: 0 0 9mm;
+        font-size: 10pt;
+        padding: 0 2mm;
+      }
+      .line{
+        display:flex;
+        align-items:flex-end;
+        gap: 6px;
+        min-width: 0;
+        flex: 1;
+        flex-wrap: wrap; /* allow long names to wrap instead of pushing layout */
+      }
+      .line .lbl{font-weight:700}
+      .uline{
+        display:inline-block;
+        min-width: 55mm;
+        border-bottom: 1px solid #000;
+        padding: 0 2mm 1mm;
+        line-height: 1.1;
+        outline: none;
+        background: transparent;
+      }
+      .uline:focus{
+        box-shadow: inset 0 -2px 0 rgba(31,94,255,.25);
+      }
+      .uline.date{
+        min-width: 45mm;
+        width: 45mm;
+        text-align: left;
+        border: none;
+        border-bottom: 1px solid #000;
+        background: transparent;
+        padding: 0 2mm 1mm;
+        box-shadow: none;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      /* Hide the calendar icon in browsers where possible (clean PDF/print). */
+      .uline.date::-webkit-calendar-picker-indicator{
+        opacity: 0;
+      }
+      .uline[contenteditable="true"]{
+        max-width: 100%;
+        white-space:normal; /* allow wrapping under the label */
+        overflow-wrap: break-word;
+      }
+
+      .table-tools{
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        align-items:center;
+        justify-content:space-between;
+        margin: 14px 0 8px;
+      }
+      .table-tools .left,
+      .table-tools .right{
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        align-items:center;
+      }
+      .table-tools .small{
+        font-size: 12px;
+        color: var(--muted);
+      }
+      table{
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      thead th{
+        text-align:center;
+        font-size: 9.5pt;
+        color: #000;
+        padding: 4px 6px;
+        border: 1px solid #000;
+        background: var(--header-gray);
+        vertical-align: bottom;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      tbody td{
+        padding: 6px 6px;
+        border: 1px solid #000;
+        vertical-align: top;
+        font-size: 10pt;
+      }
+      tbody td[contenteditable="true"]{
+        outline:none;
+        background: transparent;
+      }
+      tbody td[contenteditable="true"]:focus{
+        box-shadow: inset 0 0 0 2px rgba(31,94,255,.18);
+      }
+      .num{
+        text-align:right;
+        font-variant-numeric: tabular-nums;
+      }
+      .cell-error{
+        box-shadow: inset 0 0 0 2px rgba(220,38,38,.7);
+        background: rgba(254,242,242,.9);
+      }
+      .row-actions{
+        width: 44px;
+        text-align:right;
+      }
+      .icon-btn{
+        border: 1px solid var(--line);
+        background:#fff;
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-weight: 800;
+        font-size: 12px;
+        cursor:pointer;
+      }
+      .totals{
+        margin-top: 9mm;
+      }
+      .total-table{
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      .total-table td{
+        border: 1px solid #000;
+        padding: 6px;
+        font-size: 10pt;
+      }
+      .total-table .k{
+        background: var(--header-gray);
+        font-weight: 700;
+        text-transform: uppercase;
+        text-align:center;
+        width: 50%;
+      }
+      .total-table .v{
+        text-align:right;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .footer{
+        margin-top: 12mm;
+        padding-top: 0;
+        border-top: none;
+        display:flex;
+        justify-content:space-between;
+        gap: 24px;
+      }
+      .pay-grid{
+        display:grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        max-width: 420px;
+      }
+      .pay-block{
+        font-size: 9pt;
+        line-height: 1.5;
+      }
+      .pay-block b{font-weight: 900}
+      .pay-block .mono{font-variant-numeric: tabular-nums}
+      .approval{
+        text-align:center;
+        min-width: 320px;
+      }
+      .approval .ap-title{
+        font-weight: 900;
+        letter-spacing:.02em;
+        font-size: 9pt;
+      }
+      .approval-stack{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+      }
+      .signature-container{
+        position: relative;
+        width: 260px;
+        text-align:center;
+      }
+      .sig{
+        margin: 0 auto;
+        width: 260px;
+        border-bottom: 1px solid #000;
+        height: 38px; /* keeps underline area stable */
+        position: relative;
+        overflow: visible;
+      }
+      .sig .sig-text{
+        position:absolute;
+        inset:0;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color: rgba(0,0,0,.22);
+        font-weight: 800;
+        letter-spacing:.06em;
+        text-transform: uppercase;
+        font-size: 11px;
+        user-select:none;
+      }
+      .approval .name{
+        font-weight: 900;
+        text-transform: uppercase;
+        font-size: 9pt;
+        margin: 12px 0 0;
+        position: relative;
+        z-index: 1; /* name stays readable under signature */
+      }
+      .approval .role{
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 9pt;
+        margin: 6px 0 0;
+      }
+      .sig-img{
+        position: absolute;
+        left: 50%;
+        top: -6px; /* lowered more */
+        transform: translateX(-50%);
+        width: 170px; /* increase visibility without breaking layout */
+        height: auto;
+        pointer-events: none;
+        object-fit: contain;
+        object-position: center;
+        display:block;
+        margin: 0 auto;
+        z-index: 3; /* in front of name */
+      }
+      .muted-note{
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .manage-dialog{
+        max-width: 680px;
+        width: min(680px, 92vw);
+        border: 1px solid rgba(0,0,0,.25);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .manage-dialog::backdrop{background: rgba(0,0,0,.35)}
+      .dlg-title{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:12px;
+        margin-bottom: 10px;
+      }
+      .dlg-title h2{
+        margin:0;
+        font-size: 14px;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+      }
+      .cols{
+        display:flex;
+        flex-direction:column;
+        gap: 8px;
+      }
+      .col-row{
+        display:grid;
+        grid-template-columns: 1fr 120px 120px 44px;
+        gap: 10px;
+        align-items:center;
+      }
+      .col-row input[type="text"]{
+        border:1px solid rgba(0,0,0,.18);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-weight: 700;
+      }
+      .col-row .chk{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+        font-size: 12px;
+        color: #222;
+      }
+      .col-row .chk input{margin:0}
+
+      .sr-only{
+        position:absolute;
+        width:1px;
+        height:1px;
+        padding:0;
+        margin:-1px;
+        overflow:hidden;
+        clip:rect(0,0,0,0);
+        border:0;
+      }
+
+      /* Mobile responsiveness: allow A4 paper to be horizontally scrollable
+         while keeping the export sizing unchanged. */
+      @media (max-width: 980px){
+        .app{margin: 12px auto; padding: 0 12px 24px;}
+        .topbar{position: static; margin: 0 auto 10px;}
+        .actions{justify-content:flex-start;}
+
+        /* Center the scaled paper on tablets/phones. */
+        .paper-wrap{
+          display:flex;
+          justify-content:center;
+          overflow:visible;
+        }
+
+        .paper{
+          transform-origin: top center;
+          transform: scale(0.58);
+        }
+
+        /* When actively editing on mobile, temporarily un-scale for readability. */
+        .paper.paper-zoomed{
+          transform: scale(1) !important;
+        }
+      }
+      @media (max-width: 560px){
+        .app{padding: 0 10px 18px;}
+        .topbar{padding: 10px;}
+        .topbar .hint{display:none;}
+        .actions{gap: 8px;}
+        .actions button{font-size: 12px; padding: 8px 10px; border-radius: 10px;}
+        .paper-wrap{
+          width: 100%;
+          max-width: 100%;
+          overflow-x: auto;
+          overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        /* Keep A4 exact width so html2pdf exports correct, but scale smaller on very small phones. */
+        .paper{
+          min-width: var(--a4w);
+          transform-origin: top center;
+          transform: scale(0.5);
+        }
+
+        .paper.paper-zoomed{
+          transform: scale(0.8) !important;
+        }
+      }
+      @media print{
+        body{background:#fff}
+        .app{margin:0; padding:0}
+        .topbar{display:none !important}
+        .paper-wrap{
+          border:none;
+          border-radius:0;
+          box-shadow:none;
+        }
+        .paper{
+          padding: var(--page-pad-y) var(--page-pad-x);
+          background: var(--paper);
+          transform: none !important; /* never scale in print/PDF */
+        }
+        .paper::before,
+        .paper::after{display:none !important;}
+        .no-print{display:none !important}
+        a[href]::after{content:""}
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar no-print">
+        <div class="left">
+          <h1>Statement of Account Template</h1>
+          <p class="hint">Click lines/cells to edit. Use the toolbar (doesn’t print).</p>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnAddRow" type="button">Add row</button>
+          <button id="btnAddCol" type="button">Add column</button>
+          <button id="btnManageCols" type="button">Manage columns</button>
+          <button id="btnManageRows" type="button">Manage rows</button>
+          <button id="btnReset" type="button">Reset sample rows</button>
+          <button id="btnPrint" type="button">Print</button>
+          <button id="btnPreviewPdf" type="button">Preview PDF</button>
+          <button class="primary" id="btnPdf" type="button">Download PDF</button>
+        </div>
+      </div>
+
+      <dialog id="dlgCols" class="manage-dialog no-print" role="dialog" aria-modal="true" aria-labelledby="dlgColsTitle">
+        <div class="dlg-title">
+          <h2 id="dlgColsTitle">Manage columns</h2>
+          <button id="btnCloseCols" type="button">Close</button>
+        </div>
+        <div class="cols" id="colsList"></div>
+        <p class="muted-note" style="margin:10px 0 0">
+          “Sum” columns are included in TOTAL. Removing a column deletes its values.
+        </p>
+      </dialog>
+
+      <dialog id="dlgPdfPreview" class="manage-dialog no-print" style="padding:0;" role="dialog" aria-modal="true" aria-labelledby="dlgPdfTitle">
+        <div class="dlg-title" style="padding:14px 14px 10px;">
+          <h2 id="dlgPdfTitle">PDF Preview</h2>
+          <button id="btnClosePdfPreview" type="button">Close</button>
+        </div>
+        <div style="padding:0 14px 14px;">
+          <iframe id="pdfPreviewFrame" style="width:100%; height:72vh; border:1px solid rgba(0,0,0,.15); border-radius:10px;"></iframe>
+        </div>
+      </dialog>
+
+      <dialog id="dlgRows" class="manage-dialog no-print" style="padding:14px;" role="dialog" aria-modal="true" aria-labelledby="dlgRowsTitle">
+        <div class="dlg-title">
+          <h2 id="dlgRowsTitle">Manage rows</h2>
+          <button id="btnCloseRows" type="button">Close</button>
+        </div>
+        <div id="rowsList" class="cols" style="gap:10px;"></div>
+        <p class="muted-note" style="margin:10px 0 0">
+          Deletes remove the row’s values. “Sum” columns are included in TOTAL.
+        </p>
+      </dialog>
+
+      <div class="paper-wrap">
+        <div class="paper" id="soaPaper" role="document" aria-label="Statement of Account">
+          <div class="brand">
+            <img src="logo/laurenB.png" alt="Lauren Berberabe logo" class="logo" />
+            <p class="name" id="brandName" contenteditable="true" spellcheck="false">LAUREN BERBERABE</p>
+            <p class="tag" id="brandTag" contenteditable="true" spellcheck="false">FASHION AND COUTURE</p>
+          </div>
+
+          <div class="doc-title">STATEMENT OF ACCOUNT</div>
+
+          <div class="line-fields">
+            <div class="line">
+              <span class="lbl">Billed To:</span>
+              <span class="uline" id="billedTo" contenteditable="true" spellcheck="false"></span>
+            </div>
+            <div class="line" style="justify-content:flex-end">
+              <span class="lbl">Date:</span>
+              <input class="uline date" id="soaDate" type="date" />
+            </div>
+          </div>
+
+          <div style="overflow:hidden; border:0;">
+            <table id="itemsTable" role="table" aria-label="Statement of Account line items">
+              <thead>
+                <tr id="theadRow"></tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+
+          <div class="totals">
+            <table class="total-table" aria-label="Total amount">
+              <tr>
+                <td class="k">TOTAL</td>
+                <td class="v" id="grandTotal">₱0.00</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="footer">
+            <div class="pay-grid">
+              <div class="pay-block">
+                <b>Bank Details:</b><br />
+                Lauren Arielle Berberabe<br />
+                BDO Savings Account<br />
+                <b>Account No.: <span class="mono">0019-2011-0338</span></b>
+              </div>
+
+              <div class="pay-block">
+                <b>Gcash:</b><br />
+                Lauren Arielle B.<br />
+                <b>Gcash No: <span class="mono">0917-828-0412</span></b>
+              </div>
+            </div>
+
+            <div class="approval">
+              <div class="ap-title">APPROVED BY:</div>
+              <div class="approval-stack">
+                <div class="signature-container">
+                  <div class="sig" aria-label="Signature line">
+                    <img src="logo/laub sign.png" alt="Signature" class="sig-img" />
+                  </div>
+                  <div class="name" id="approvedName" contenteditable="true" spellcheck="false">LAUREN BERBERABE-HERNANDEZ</div>
+                </div>
+                <div class="role" id="approvedRole" contenteditable="true" spellcheck="false">FASHION DESIGNER</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="muted-note no-print" id="pdfNote">
+        PDF Preview/Download uses a local bundled library (works offline). Print also always works.
+      </p>
+    </div>
+
+    <script>
+      // Table model: columns[] and rows[] live in-memory and are rendered to DOM.
+      const state = {
+        columns: [],
+        rows: []
+      };
+
+      const $theadRow = document.getElementById('theadRow');
+      const $tbody = document.getElementById('tbody');
+      const $grandTotal = document.getElementById('grandTotal');
+      const $dlgCols = document.getElementById('dlgCols');
+      const $colsList = document.getElementById('colsList');
+      const $dlgPdfPreview = document.getElementById('dlgPdfPreview');
+      const $pdfPreviewFrame = document.getElementById('pdfPreviewFrame');
+      const $dlgRows = document.getElementById('dlgRows');
+      const $rowsList = document.getElementById('rowsList');
+      let previewUrl = null;
+
+      function uuid(){
+        if(window.crypto && typeof window.crypto.randomUUID === 'function'){
+          return window.crypto.randomUUID();
+        }
+        // Fallback UUID v4-ish (good enough for DOM keys)
+        const rnd = (n) => Math.floor(Math.random() * n);
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = rnd(16);
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      }
+
+      function todayISO(){
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2,'0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      }
+
+      function init(){
+        document.getElementById('soaDate').value = todayISO();
+        document.getElementById('billedTo').innerText = '__________________';
+        const saved = loadDraft();
+        if(saved && Array.isArray(saved.columns) && Array.isArray(saved.rows)){
+          state.columns = saved.columns;
+          state.rows = saved.rows;
+          render();
+          applyHeaderFrom(saved);
+        }else{
+          state.columns = [
+            { id: uuid(), name: 'Description', isNumeric: false, sum: false, width: 0.70 },
+            { id: uuid(), name: 'Amount', isNumeric: true, sum: true, width: 0.30 }
+          ];
+          resetSampleRows();
+          render();
+        }
+        wireActions();
+        wireMobileZoom();
+      }
+
+      function resetSampleRows(){
+        state.rows = [
+          { id: uuid(), cells: {} },
+          { id: uuid(), cells: {} }
+        ];
+        // Prefill a tiny sample (user can delete).
+        state.rows[0].cells[state.columns[0].id] = '';
+        state.rows[0].cells[state.columns[1].id] = '';
+        state.rows[1].cells[state.columns[0].id] = '';
+        state.rows[1].cells[state.columns[1].id] = '';
+        saveDraft();
+      }
+
+      function wireActions(){
+        document.getElementById('btnAddRow').addEventListener('click', () => {
+          addRow();
+          render();
+        });
+
+        document.getElementById('btnAddCol').addEventListener('click', () => {
+          addColumn();
+          render();
+        });
+
+        document.getElementById('btnManageCols').addEventListener('click', () => {
+          renderColumnsDialog();
+          $dlgCols.showModal();
+        });
+        document.getElementById('btnCloseCols').addEventListener('click', () => $dlgCols.close());
+
+        document.getElementById('btnClosePdfPreview').addEventListener('click', () => {
+          $dlgPdfPreview.close();
+        });
+
+        document.getElementById('btnManageRows').addEventListener('click', () => {
+          renderRowsDialog();
+          $dlgRows.showModal();
+        });
+        document.getElementById('btnCloseRows').addEventListener('click', () => $dlgRows.close());
+
+        document.getElementById('btnReset').addEventListener('click', () => {
+          resetSampleRows();
+          render();
+        });
+
+        document.getElementById('btnPrint').addEventListener('click', () => window.print());
+        document.getElementById('btnPreviewPdf').addEventListener('click', () => previewPdf());
+        document.getElementById('btnPdf').addEventListener('click', downloadPdf);
+
+        // Save header edits into draft.
+        const headerIds = ['billedTo','brandName','brandTag','approvedName','approvedRole'];
+        headerIds.forEach(id => {
+          const el = document.getElementById(id);
+          if(!el) return;
+          el.addEventListener('input', () => saveDraft());
+          el.addEventListener('blur', () => saveDraft());
+        });
+
+        const dateEl = document.getElementById('soaDate');
+        if(dateEl){
+          dateEl.addEventListener('change', () => saveDraft());
+        }
+      }
+
+      function isMobileViewport(){
+        return window.innerWidth <= 980;
+      }
+
+      function wireMobileZoom(){
+        const paper = document.getElementById('soaPaper');
+        if(!paper) return;
+
+        let zoomTimeout = null;
+
+        const zoomIn = (target) => {
+          if(!isMobileViewport()) return;
+          paper.classList.add('paper-zoomed');
+          // Give layout a moment to apply transform before scrolling.
+          setTimeout(() => {
+            try{
+              target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }catch(_e){}
+          }, 80);
+        };
+
+        const zoomOut = () => {
+          if(zoomTimeout) clearTimeout(zoomTimeout);
+          // Small delay so moving between fields doesn't flicker zoom.
+          zoomTimeout = setTimeout(() => {
+            paper.classList.remove('paper-zoomed');
+          }, 200);
+        };
+
+        // Use event delegation to catch focus/blur on all editable areas.
+        document.addEventListener('focusin', (e) => {
+          const t = e.target;
+          if(
+            t.matches &&
+            (t.matches('[contenteditable="true"]') ||
+             t.matches('input, textarea, select'))
+          ){
+            zoomIn(t);
+          }
+        });
+
+        document.addEventListener('focusout', (e) => {
+          const t = e.target;
+          if(
+            t.matches &&
+            (t.matches('[contenteditable="true"]') ||
+             t.matches('input, textarea, select'))
+          ){
+            zoomOut();
+          }
+        });
+
+        window.addEventListener('resize', () => {
+          if(!isMobileViewport()){
+            paper.classList.remove('paper-zoomed');
+          }
+        });
+      }
+
+      function addRow(){
+        state.rows.push({ id: uuid(), cells: {} });
+        saveDraft();
+      }
+
+      function addColumn(){
+        const col = {
+          id: uuid(),
+          name: 'New column',
+          isNumeric: false,
+          sum: false,
+          width: 0.25
+        };
+        state.columns.splice(Math.max(1, state.columns.length - 1), 0, col);
+        saveDraft();
+      }
+
+      function removeColumn(colId){
+        // Keep at least 1 non-action column.
+        if(state.columns.length <= 1) return;
+        state.columns = state.columns.filter(c => c.id !== colId);
+        for(const row of state.rows){
+          delete row.cells[colId];
+        }
+      }
+
+      function removeRow(rowId){
+        state.rows = state.rows.filter(r => r.id !== rowId);
+      }
+
+      function parseMoneyLike(value){
+        if(value == null) return 0;
+        const s = String(value).trim()
+          .replace(/₱/g,'')
+          .replace(/,/g,'')
+          .replace(/\s+/g,'');
+        const n = Number(s);
+        return Number.isFinite(n) ? n : 0;
+      }
+
+      function formatPhp(n){
+        const v = Number.isFinite(n) ? n : 0;
+        return `₱${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+
+      function computeGrandTotal(){
+        const sumCols = state.columns.filter(c => c.sum);
+        let total = 0;
+        for(const row of state.rows){
+          for(const col of sumCols){
+            total += parseMoneyLike(row.cells[col.id]);
+          }
+        }
+        return total;
+      }
+
+      const STORAGE_KEY = 'soa-draft-v1';
+
+      function serializeState(){
+        return {
+          columns: state.columns,
+          rows: state.rows,
+          header: {
+            billedTo: document.getElementById('billedTo').innerText,
+            date: document.getElementById('soaDate').value,
+            brandName: document.getElementById('brandName').innerText,
+            brandTag: document.getElementById('brandTag').innerText,
+            approvedName: document.getElementById('approvedName').innerText,
+            approvedRole: document.getElementById('approvedRole').innerText,
+          }
+        };
+      }
+
+      function applyHeaderFrom(data){
+        if(!data || !data.header) return;
+        const h = data.header;
+        if(h.billedTo != null) document.getElementById('billedTo').innerText = h.billedTo;
+        if(h.date != null) document.getElementById('soaDate').value = h.date;
+        if(h.brandName != null) document.getElementById('brandName').innerText = h.brandName;
+        if(h.brandTag != null) document.getElementById('brandTag').innerText = h.brandTag;
+        if(h.approvedName != null) document.getElementById('approvedName').innerText = h.approvedName;
+        if(h.approvedRole != null) document.getElementById('approvedRole').innerText = h.approvedRole;
+      }
+
+      function saveDraft(){
+        try{
+          const data = serializeState();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }catch(_e){}
+      }
+
+      function loadDraft(){
+        try{
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if(!raw) return null;
+          return JSON.parse(raw);
+        }catch(_e){
+          return null;
+        }
+      }
+
+      function render(){
+        renderHeader();
+        renderBody();
+        $grandTotal.textContent = formatPhp(computeGrandTotal());
+      }
+
+      function renderHeader(){
+        $theadRow.innerHTML = '';
+
+        for(const col of state.columns){
+          const th = document.createElement('th');
+          th.style.width = `${Math.round((col.width || 0.25) * 100)}%`;
+          th.textContent = col.name;
+          $theadRow.appendChild(th);
+        }
+
+        // No action column in paper (keeps the design exact).
+      }
+
+      function renderBody(){
+        $tbody.innerHTML = '';
+
+        // Keep the big box height consistent by distributing row height.
+        const rowsCount = Math.max(1, state.rows.length);
+        const rowHeightMm = (82 / rowsCount); // matches --items-body-mm default
+
+        for(const row of state.rows){
+          const tr = document.createElement('tr');
+          tr.style.height = `${rowHeightMm}mm`;
+
+          for(const col of state.columns){
+            const td = document.createElement('td');
+            td.contentEditable = 'true';
+            td.spellcheck = !col.isNumeric;
+            td.dataset.rowId = row.id;
+            td.dataset.colId = col.id;
+            td.textContent = row.cells[col.id] ?? '';
+            td.className = col.isNumeric ? 'num' : '';
+
+            td.addEventListener('input', () => {
+              row.cells[col.id] = td.textContent;
+              if(col.sum || col.isNumeric){
+                // Keep the total responsive for number edits.
+                $grandTotal.textContent = formatPhp(computeGrandTotal());
+              }
+              saveDraft();
+            });
+
+            td.addEventListener('blur', () => {
+              if(col.isNumeric){
+                const raw = row.cells[col.id];
+                const n = parseMoneyLike(raw);
+
+                if(!Number.isFinite(n) || Number.isNaN(n)){
+                  td.classList.add('cell-error');
+                }else{
+                  td.classList.remove('cell-error');
+                  row.cells[col.id] = String(n);
+                  td.textContent = formatPhp(n);
+                  $grandTotal.textContent = formatPhp(computeGrandTotal());
+                }
+                saveDraft();
+              }
+            });
+
+            tr.appendChild(td);
+          }
+
+          $tbody.appendChild(tr);
+        }
+      }
+
+      function renderColumnsDialog(){
+        $colsList.innerHTML = '';
+        for(const col of state.columns){
+          const row = document.createElement('div');
+          row.className = 'col-row';
+
+          const name = document.createElement('input');
+          name.type = 'text';
+          name.value = col.name;
+          name.addEventListener('input', () => {
+            col.name = name.value;
+            renderHeader();
+          });
+
+          const sumLbl = document.createElement('label');
+          sumLbl.className = 'chk';
+          const sum = document.createElement('input');
+          sum.type = 'checkbox';
+          sum.checked = !!col.sum;
+          sum.addEventListener('change', () => {
+            col.sum = sum.checked;
+            col.isNumeric = col.sum ? true : col.isNumeric;
+            $grandTotal.textContent = formatPhp(computeGrandTotal());
+          });
+          sumLbl.appendChild(sum);
+          sumLbl.appendChild(document.createTextNode('Sum'));
+
+          const numLbl = document.createElement('label');
+          numLbl.className = 'chk';
+          const num = document.createElement('input');
+          num.type = 'checkbox';
+          num.checked = !!col.isNumeric;
+          num.addEventListener('change', () => {
+            col.isNumeric = num.checked;
+            renderBody();
+            $grandTotal.textContent = formatPhp(computeGrandTotal());
+          });
+          numLbl.appendChild(num);
+          numLbl.appendChild(document.createTextNode('Numeric'));
+
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'icon-btn';
+          del.textContent = '×';
+          del.title = 'Remove column';
+          del.disabled = state.columns.length <= 1;
+          del.addEventListener('click', () => {
+            if(!confirm('Remove this column and all its values?')) return;
+            removeColumn(col.id);
+            render();
+            renderColumnsDialog();
+            saveDraft();
+          });
+
+          row.appendChild(name);
+          row.appendChild(sumLbl);
+          row.appendChild(numLbl);
+          row.appendChild(del);
+          $colsList.appendChild(row);
+        }
+      }
+
+      function renderRowsDialog(){
+        $rowsList.innerHTML = '';
+        const firstColId = state.columns[0]?.id;
+
+        state.rows.forEach((row, idx) => {
+          const rowEl = document.createElement('div');
+          rowEl.className = 'col-row';
+
+          const label = document.createElement('div');
+          label.style.display = 'flex';
+          label.style.flexDirection = 'column';
+          label.style.gap = '4px';
+          label.style.fontFamily = 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif';
+
+          const title = document.createElement('div');
+          title.style.fontWeight = '800';
+          title.textContent = `Row ${idx + 1}`;
+
+          const preview = document.createElement('div');
+          preview.style.color = '#444';
+          preview.style.fontSize = '12px';
+          const pv = firstColId ? (row.cells[firstColId] ?? '') : '';
+          preview.textContent = pv ? String(pv).slice(0, 40) : '(empty)';
+
+          label.appendChild(title);
+          label.appendChild(preview);
+
+          const spacer1 = document.createElement('div');
+          const spacer2 = document.createElement('div');
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'icon-btn';
+          del.textContent = '×';
+          del.title = 'Remove row';
+          del.disabled = state.rows.length <= 1;
+          del.addEventListener('click', () => {
+            if(!confirm('Remove this row and its values?')) return;
+            removeRow(row.id);
+            render();
+            renderRowsDialog();
+            saveDraft();
+          });
+
+          rowEl.appendChild(label);
+          rowEl.appendChild(spacer1);
+          rowEl.appendChild(spacer2);
+          rowEl.appendChild(del);
+          $rowsList.appendChild(rowEl);
+        });
+      }
+
+      function safeFilename(s){
+        return String(s || '')
+          .trim()
+          .replace(/[\\/:*?"<>|]+/g, '-')
+          .replace(/\s+/g, ' ')
+          .slice(0, 80) || 'statement-of-account';
+      }
+
+      function formatDateForDisplay(iso){
+        if(!iso) return '';
+        const parts = String(iso).split('-');
+        if(parts.length !== 3) return iso;
+        const [y, m, d] = [parts[0], parts[1], parts[2]];
+        return `${m}/${d}/${y}`;
+      }
+
+      function prepareDateForPdf(){
+        const input = document.getElementById('soaDate');
+        if(!input) return null;
+        const parent = input.parentNode;
+        if(!parent) return null;
+
+        const span = document.createElement('span');
+        span.id = 'soaDateText';
+        span.className = input.className; // keep underline/width from .uline/.date CSS
+        span.style.display = 'inline-block';
+        span.textContent = formatDateForDisplay(input.value);
+
+        parent.replaceChild(span, input);
+
+        return () => {
+          // Restore the original input element for continued editing.
+          parent.replaceChild(input, span);
+        };
+      }
+
+      async function downloadPdf(){
+        const btn = document.getElementById('btnPdf');
+        btn.disabled = true;
+
+        try{
+          await ensureHtml2Pdf();
+          const billed = document.getElementById('billedTo').innerText.trim();
+          const billedName = safeFilename(billed || 'SOA');
+          const filename = `${billedName} SOA.pdf`;
+
+          const element = document.getElementById('soaPaper');
+          const restoreDate = prepareDateForPdf();
+
+          // A4 portrait in mm.
+          await window.html2pdf()
+            .set({
+              margin: [0, 0, 0, 0],
+              pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+              filename,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            })
+            .from(element)
+            .save();
+
+          if(restoreDate) restoreDate();
+        }catch(err){
+          console.error(err);
+          alert('PDF download failed. Try Print instead, or check internet connection.');
+        }finally{
+          btn.disabled = false;
+        }
+      }
+
+      async function previewPdf(){
+        const btn = document.getElementById('btnPreviewPdf');
+        btn.disabled = true;
+
+        let restoreDate = null;
+        try{
+          await ensureHtml2Pdf();
+          const element = document.getElementById('soaPaper');
+          restoreDate = prepareDateForPdf();
+
+          const billed = document.getElementById('billedTo').innerText.trim();
+          const billedName = safeFilename(billed || 'SOA');
+          const filename = `${billedName} SOA-preview.pdf`;
+
+          const worker = window.html2pdf()
+            .set({
+              margin: [0, 0, 0, 0],
+              filename,
+              image: { type: 'jpeg', quality: 0.98 },
+              html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+              pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+            })
+            .from(element)
+            .toPdf();
+
+          const pdfBlob = await worker.output('blob');
+
+          if(restoreDate) restoreDate();
+
+          if(previewUrl) URL.revokeObjectURL(previewUrl);
+          previewUrl = URL.createObjectURL(pdfBlob);
+          $pdfPreviewFrame.src = previewUrl;
+          $dlgPdfPreview.showModal();
+        }catch(err){
+          if(restoreDate) restoreDate();
+          console.error(err);
+          alert('PDF preview failed. Try Download PDF instead, or check internet connection.');
+        }finally{
+          btn.disabled = false;
+        }
+      }
+
+      function ensureHtml2Pdf(){
+        if(window.html2pdf) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          // Offline-friendly: load bundled library from local assets.
+          s.src = 'assets/html2pdf.bundle.min.js';
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error('Failed to load local html2pdf bundle'));
+          document.head.appendChild(s);
+        });
+      }
+
+      init();
+
+      // Register service worker for offline support (PWA).
+      // Note: service workers require HTTPS in production; GitHub Pages provides this.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./service-worker.js')
+            .catch((err) => {
+              console.error('Service worker registration failed:', err);
+            });
+        });
+      }
+
+      // Cleanup preview object URL.
+      $dlgPdfPreview.addEventListener('close', () => {
+        try{
+          $pdfPreviewFrame.src = '';
+          if(previewUrl){
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+          }
+        }catch(_e){}
+      });
+    </script>
+  </body>
+</html>
